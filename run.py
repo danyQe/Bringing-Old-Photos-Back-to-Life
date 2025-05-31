@@ -12,6 +12,7 @@ import psutil
 from subprocess import call, PIPE, Popen
 import logging
 from colorize import colorize_image
+import subprocess
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -34,38 +35,16 @@ def cleanup_memory():
     except Exception as e:
         logger.warning(f"Memory cleanup warning: {str(e)}")
 
-def run_cmd(command, timeout=3600):
-    """Run command with timeout and proper error handling"""
+def run_cmd(cmd):
+    """Run a command and handle errors"""
     try:
-        logger.info(f"Running command: {command}")
-        
-        # Use Popen for better control
-        process = Popen(command, shell=True, stdout=PIPE, stderr=PIPE, universal_newlines=True)
-        
-        try:
-            stdout, stderr = process.communicate(timeout=timeout)
-            
-            if process.returncode != 0:
-                logger.error(f"Command failed with return code {process.returncode}")
-                logger.error(f"STDERR: {stderr}")
-                raise RuntimeError(f"Command failed: {command}")
-            
-            if stdout:
-                logger.info(f"Command output: {stdout}")
-            if stderr:
-                logger.warning(f"Command warnings: {stderr}")
-                
-        except TimeoutError:
-            process.kill()
-            logger.error(f"Command timed out after {timeout} seconds")
-            raise TimeoutError(f"Command timed out: {command}")
-            
-    except KeyboardInterrupt:
-        logger.info("Process interrupted by user")
-        sys.exit(1)
-    except Exception as e:
-        logger.error(f"Error running command: {str(e)}")
-        raise
+        # Use subprocess.run with shell=True to handle paths with spaces
+        result = subprocess.run(cmd, shell=True, check=True, capture_output=True, text=True)
+        return result.stdout
+    except subprocess.CalledProcessError as e:
+        logger.error(f"Command failed with return code {e.returncode}")
+        logger.error(f"STDERR: {e.stderr}")
+        raise RuntimeError(f"Command failed: {cmd}")
 
 def setup_directories(output_folder):
     """Setup and return all required directories"""
@@ -105,8 +84,8 @@ def stage_1_overall_restoration(input_file, dirs, opts, gpu_setting):
     if not opts.with_scratch:
         stage_1_command = (
             f"python test.py --test_mode Full --Quality_restore "
-            f"--test_input {stage_1_input_dir} "
-            f"--outputs_dir {dirs['stage_1']} "
+            f"--test_input \"{stage_1_input_dir}\" "
+            f"--outputs_dir \"{dirs['stage_1']}\" "
             f"--gpu_ids {gpu_setting}"
         )
         run_cmd(stage_1_command)
@@ -115,17 +94,18 @@ def stage_1_overall_restoration(input_file, dirs, opts, gpu_setting):
         new_input = os.path.join(mask_dir, "input")
         new_mask = os.path.join(mask_dir, "mask")
         
+        # Quote paths to handle spaces and special characters
         stage_1_command_1 = (
-            f"python detection.py --test_path {stage_1_input_dir} "
-            f"--output_dir {mask_dir} --input_size full_size "
+            f"python detection.py --test_path \"{stage_1_input_dir}\" "
+            f"--output_dir \"{mask_dir}\" --input_size full_size "
             f"--GPU {gpu_setting}"
         )
 
         hr_suffix = " --HR" if opts.HR else ""
         stage_1_command_2 = (
             f"python test.py --Scratch_and_Quality_restore "
-            f"--test_input {new_input} --test_mask {new_mask} "
-            f"--outputs_dir {dirs['stage_1']} "
+            f"--test_input \"{new_input}\" --test_mask \"{new_mask}\" "
+            f"--outputs_dir \"{dirs['stage_1']}\" "
             f"--gpu_ids {gpu_setting}{hr_suffix}"
         )
 
@@ -158,13 +138,13 @@ def stage_2_face_detection(dirs, opts, main_environment):
     
     if opts.HR:
         stage_2_command = (
-            f"python detect_all_dlib_HR.py --url {stage_2_input_dir} "
-            f"--save_url {dirs['stage_2']}"
+            f"python detect_all_dlib_HR.py --url \"{stage_2_input_dir}\" "
+            f"--save_url \"{dirs['stage_2']}\""
         )
     else:
         stage_2_command = (
-            f"python detect_all_dlib.py --url {stage_2_input_dir} "
-            f"--save_url {dirs['stage_2']}"
+            f"python detect_all_dlib.py --url \"{stage_2_input_dir}\" "
+            f"--save_url \"{dirs['stage_2']}\""
         )
     
     run_cmd(stage_2_command)
