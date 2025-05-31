@@ -24,6 +24,28 @@ import argparse
 import dlib
 
 
+def ensure_image_format(image):
+    """Ensure image is in the correct format for dlib face detection"""
+    if isinstance(image, np.ndarray):
+        # Convert to uint8 if not already
+        if image.dtype != np.uint8:
+            image = (image * 255).astype(np.uint8)
+        
+        # Ensure image is RGB
+        if len(image.shape) == 2:  # Grayscale
+            image = cv2.cvtColor(image, cv2.COLOR_GRAY2RGB)
+        elif image.shape[2] == 4:  # RGBA
+            image = cv2.cvtColor(image, cv2.COLOR_RGBA2RGB)
+        elif image.shape[2] == 3:  # Already RGB
+            pass
+        else:
+            raise ValueError(f"Unexpected image shape: {image.shape}")
+    else:
+        raise TypeError("Image must be a numpy array")
+    
+    return image
+
+
 def _standard_face_pts():
     pts = (
         np.array([196.0, 226.0, 316.0, 226.0, 256.0, 286.0, 220.0, 360.4, 292.0, 360.4], np.float32) / 256.0
@@ -130,10 +152,8 @@ def affine2theta(affine, input_w, input_h, target_w, target_h):
 if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
-    parser.add_argument("--url", type=str, default="/home/jingliao/ziyuwan/celebrities", help="input")
-    parser.add_argument(
-        "--save_url", type=str, default="/home/jingliao/ziyuwan/celebrities_detected_face_reid", help="output"
-    )
+    parser.add_argument("--url", type=str, required=True, help="input directory")
+    parser.add_argument("--save_url", type=str, required=True, help="output directory")
     opts = parser.parse_args()
 
     url = opts.url
@@ -151,22 +171,29 @@ if __name__ == "__main__":
 
     map_id = {}
     for x in os.listdir(url):
-        img_url = os.path.join(url, x)
-        pil_img = Image.open(img_url).convert("RGB")
+        try:
+            img_url = os.path.join(url, x)
+            if not os.path.isfile(img_url):
+                print(f"Skipping non-file: {x}")
+                continue
 
-        image = np.array(pil_img)
+            # Load and convert image
+            pil_img = Image.open(img_url).convert("RGB")
+            image = np.array(pil_img)
+            
+            # Ensure correct format for dlib
+            image = ensure_image_format(image)
 
-        start = time.time()
-        faces = face_detector(image)
-        done = time.time()
+            start = time.time()
+            faces = face_detector(image)
+            done = time.time()
 
-        if len(faces) == 0:
-            print("Warning: There is no face in %s" % (x))
-            continue
+            if len(faces) == 0:
+                print(f"Warning: No face detected in {x}")
+                continue
 
-        print(len(faces))
+            print(f"Found {len(faces)} faces in {x}")
 
-        if len(faces) > 0:
             for face_id in range(len(faces)):
                 current_face = faces[face_id]
                 face_landmarks = landmark_locator(image, current_face)
@@ -177,8 +204,13 @@ if __name__ == "__main__":
                 img_name = x[:-4] + "_" + str(face_id + 1)
                 io.imsave(os.path.join(save_url, img_name + ".png"), img_as_ubyte(aligned_face))
 
-        count += 1
+            count += 1
+            if count % 10 == 0:
+                print(f"Processed {count} images...")
 
-        if count % 1000 == 0:
-            print("%d have finished ..." % (count))
+        except Exception as e:
+            print(f"Error processing {x}: {str(e)}")
+            continue
+
+    print(f"Completed processing {count} images")
 
