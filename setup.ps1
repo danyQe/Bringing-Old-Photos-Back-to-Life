@@ -1,3 +1,5 @@
+git clone https://github.com/danyQe/Bringing-Old-Photos-Back-to-Life.git Bringing-Back-Photos-Back-to-Life
+cd  Bringing-Back-to-Life
 # Create necessary directories
 New-Item -ItemType Directory -Force -Path "Face_Enhancement/models/networks"
 New-Item -ItemType Directory -Force -Path "Global/detection_models"
@@ -28,7 +30,7 @@ Set-Location "../"
 Write-Host "Downloading face enhancement models..."
 # Download face enhancement models
 Set-Location "Face_Enhancement"
-Invoke-WebRequest -Uri "https://facevc.blob.core.windows.net/zhanbo/old_photo/pretrain/Face_Enhancement/checkpoints.zip" -OutFile "checkpoints.zip"
+Invoke-WebRequest -Uri "https://github.com/microsoft/Bringing-Old-Photos-Back-to-Life/releases/download/v1.0/face_checkpoints.zip"
 Expand-Archive -Path "checkpoints.zip" -DestinationPath "." -Force
 Remove-Item "checkpoints.zip"
 Set-Location "../"
@@ -36,7 +38,7 @@ Set-Location "../"
 Write-Host "Downloading global models..."
 # Download global models
 Set-Location "Global"
-Invoke-WebRequest -Uri "https://facevc.blob.core.windows.net/zhanbo/old_photo/pretrain/Global/checkpoints.zip" -OutFile "checkpoints.zip"
+Invoke-WebRequest -Uri "https://github.com/microsoft/Bringing-Old-Photos-Back-to-Life/releases/download/v1.0/global_checkpoints.zip"
 Expand-Archive -Path "checkpoints.zip" -DestinationPath "." -Force
 Remove-Item "checkpoints.zip"
 Set-Location "../"
