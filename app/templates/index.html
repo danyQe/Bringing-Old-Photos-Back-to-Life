@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Old Photo Restoration</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 min-h-screen">
+    <div class="container mx-auto px-4 py-8">
+        <!-- Header -->
+        <header class="text-center mb-12">
+            <h1 class="text-4xl font-bold text-gray-800 mb-2">Old Photo Restoration</h1>
+            <p class="text-gray-600">Bring your old photos back to life with AI-powered restoration</p>
+        </header>
+
+        <!-- Main Content -->
+        <div class="max-w-4xl mx-auto bg-white rounded-lg shadow-lg p-8">
+            <!-- Upload Section -->
+            <div class="mb-8">
+                <div class="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center" id="dropZone">
+                    <input type="file" id="fileInput" class="hidden" accept="image/*">
+                    <div class="space-y-4">
+                        <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
+                        </svg>
+                        <div class="text-gray-600">
+                            <p class="mb-2">Drag and drop your photo here, or</p>
+                            <button id="uploadBtn" class="bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600 transition-colors">
+                                Select Photo
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Options Section -->
+            <div class="mb-8">
+                <h2 class="text-xl font-semibold mb-4">Processing Options</h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <label class="flex items-center space-x-3">
+                        <input type="checkbox" id="withScratch" class="form-checkbox h-5 w-5 text-blue-500">
+                        <span class="text-gray-700">Image has scratches</span>
+                    </label>
+                    <label class="flex items-center space-x-3">
+                        <input type="checkbox" id="highResolution" class="form-checkbox h-5 w-5 text-blue-500">
+                        <span class="text-gray-700">High Resolution</span>
+                    </label>
+                    <label class="flex items-center space-x-3">
+                        <input type="checkbox" id="detectScratches" class="form-checkbox h-5 w-5 text-blue-500">
+                        <span class="text-gray-700">Detect Scratches</span>
+                    </label>
+                    <label class="flex items-center space-x-3">
+                        <input type="checkbox" id="colorize" class="form-checkbox h-5 w-5 text-blue-500" checked>
+                        <span class="text-gray-700">Colorize Photo</span>
+                    </label>
+                </div>
+            </div>
+
+            <!-- Preview Section -->
+            <div class="mb-8">
+                <h2 class="text-xl font-semibold mb-4">Preview</h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div class="border rounded-lg p-4">
+                        <h3 class="text-lg font-medium mb-2">Original</h3>
+                        <img id="originalPreview" class="w-full rounded-lg" style="display: none;">
+                    </div>
+                    <div class="border rounded-lg p-4">
+                        <h3 class="text-lg font-medium mb-2">Restored</h3>
+                        <img id="restoredPreview" class="w-full rounded-lg" style="display: none;">
+                        <div id="downloadContainer" class="mt-4 text-center hidden">
+                            <button id="downloadBtn" class="bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600 transition-colors">
+                                Download Restored Image
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Process Button -->
+            <div class="text-center">
+                <button id="processBtn" class="bg-green-500 text-white px-8 py-3 rounded-lg hover:bg-green-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed" disabled>
+                    Process Photo
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Loading Modal -->
+    <div id="loadingModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden">
+        <div class="bg-white p-8 rounded-lg text-center">
+            <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
+            <p class="text-gray-700">Processing your photo...</p>
+            <p id="processingTime" class="text-gray-500 text-sm mt-2">Time elapsed: 0 seconds</p>
+        </div>
+    </div>
+
+    <script>
+        // File handling
+        const dropZone = document.getElementById('dropZone');
+        const fileInput = document.getElementById('fileInput');
+        const uploadBtn = document.getElementById('uploadBtn');
+        const processBtn = document.getElementById('processBtn');
+        const originalPreview = document.getElementById('originalPreview');
+        const restoredPreview = document.getElementById('restoredPreview');
+        const loadingModal = document.getElementById('loadingModal');
+        const processingTimeElement = document.getElementById('processingTime');
+        const downloadContainer = document.getElementById('downloadContainer');
+        const downloadBtn = document.getElementById('downloadBtn');
+        
+        // Store the restored image URL for download
+        let restoredImageUrl = '';
+
+        // Event listeners
+        uploadBtn.addEventListener('click', () => fileInput.click());
+        fileInput.addEventListener('change', handleFileSelect);
+        dropZone.addEventListener('dragover', handleDragOver);
+        dropZone.addEventListener('drop', handleDrop);
+        processBtn.addEventListener('click', processImage);
+        downloadBtn.addEventListener('click', downloadImage);
+
+        function handleFileSelect(e) {
+            const file = e.target.files[0];
+            if (file) {
+                displayPreview(file);
+            }
+        }
+
+        function handleDragOver(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            dropZone.classList.add('border-blue-500');
+        }
+
+        function handleDrop(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            dropZone.classList.remove('border-blue-500');
+            
+            const file = e.dataTransfer.files[0];
+            if (file && file.type.startsWith('image/')) {
+                displayPreview(file);
+            }
+        }
+
+        function displayPreview(file) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                originalPreview.src = e.target.result;
+                originalPreview.style.display = 'block';
+                processBtn.disabled = false;
+            }
+            reader.readAsDataURL(file);
+        }
+
+        async function processImage() {
+            const file = fileInput.files[0];
+            if (!file) return;
+
+            const formData = new FormData();
+            formData.append('file', file);
+            formData.append('with_scratch', document.getElementById('withScratch').checked);
+            formData.append('high_resolution', document.getElementById('highResolution').checked);
+            formData.append('detect_scratches', document.getElementById('detectScratches').checked);
+            formData.append('colorize', document.getElementById('colorize').checked);
+
+            loadingModal.classList.remove('hidden');
+            processBtn.disabled = true;
+            downloadContainer.classList.add('hidden');
+            
+            // Start the timer
+            let startTime = Date.now();
+            let timerInterval = setInterval(() => {
+                const elapsedSeconds = Math.floor((Date.now() - startTime) / 1000);
+                processingTimeElement.textContent = `Time elapsed: ${elapsedSeconds} seconds`;
+            }, 1000);
+
+            try {
+                // Create an AbortController for timeout
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 600000); // 10 minutes timeout
+                
+                const response = await fetch('/upload', {
+                    method: 'POST',
+                    body: formData,
+                    signal: controller.signal
+                });
+                
+                // Clear the timeout
+                clearTimeout(timeoutId);
+
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    console.error('Server response:', errorText);
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                const data = await response.json();
+                if (data.success) {
+                    // Construct the full URL by combining with the current origin
+                    const fullUrl = window.location.origin + data.result_path;
+                    console.log('Restored image URL:', fullUrl);
+                    
+                    // Store the URL for download
+                    restoredImageUrl = fullUrl;
+                    
+                    // Add a timestamp to prevent caching
+                    const timestampedUrl = fullUrl + (fullUrl.includes('?') ? '&' : '?') + '_t=' + new Date().getTime();
+                    restoredPreview.src = timestampedUrl;
+                    restoredPreview.style.display = 'block';
+                    
+                    // Show download button
+                    downloadContainer.classList.remove('hidden');
+                    
+                    // Add error handling for image loading
+                    restoredPreview.onerror = function() {
+                        console.error('Error loading restored image');
+                        alert('Error loading the restored image. Please try again.');
+                        restoredPreview.style.display = 'none';
+                        downloadContainer.classList.add('hidden');
+                    };
+                } else {
+                    console.error('Server error:', data.error);
+                    alert('Error processing image: ' + (data.error || 'Unknown error'));
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                if (error.name === 'AbortError') {
+                    alert('Request timed out. The image processing is taking too long. Please try again with a smaller image or different options.');
+                } else {
+                    alert('Error processing image: ' + error.message);
+                }
+            } finally {
+                // Clear the timer
+                clearInterval(timerInterval);
+                loadingModal.classList.add('hidden');
+                processBtn.disabled = false;
+            }
+        }
+        
+        function downloadImage() {
+            if (!restoredImageUrl) {
+                alert('No restored image available to download.');
+                return;
+            }
+            
+            // Create a temporary link element
+            const link = document.createElement('a');
+            link.href = restoredImageUrl;
+            
+            // Extract filename from URL or use a default name
+            const urlParts = restoredImageUrl.split('/');
+            const filename = urlParts[urlParts.length - 1].split('?')[0] || 'restored_image.jpg';
+            
+            link.download = filename;
+            link.target = '_blank';
+            
+            // Append to body, click, and remove
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+    </script>
+</body>
+</html> 

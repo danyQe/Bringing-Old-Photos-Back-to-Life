@@ -1,0 +1,30 @@
+__pycache__/
+*.pyc
+*~
+# Face detection models
+shape_predictor_68_face_landmarks.dat.bz2
+shape_predictor_68_face_landmarks.dat
+
+# Virtual environment
+venv/
+
+# Model checkpoints and weights
+checkpoints/
+checkpoints.zip
+
+# Colorization models
+Global/models/colorization_deploy_v2.prototxt
+Global/models/colorization_release_v2.caffemodel
+Global/models/pts_in_hull.npy
+
+# Synchronized BatchNorm
+Face_Enhancement/models/networks/sync_batchnorm/
+Global/detection_models/sync_batchnorm/
+
+# Downloaded model directories
+Face_Enhancement/models/networks/Synchronized-BatchNorm-PyTorch/
+Global/detection_models/Synchronized-BatchNorm-PyTorch/
+
+# Output directories
+output/
+colorized/
